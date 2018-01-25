@@ -49,6 +49,9 @@
       tagsContainer: null,
       tagCloseIcon: '×',
       tagClass: '',
+      isSelectable: false,
+      selectHandler: null,
+      deleteHandler: null,
       validator: null,
       onlyTagList: false
     };
@@ -275,12 +278,41 @@
         tlis.splice(p, 1);
         tlid.splice(p, 1);
         refreshHiddenTagList();
+        tagManagerOptions.deleteHandler(tlis[p])
         // console.log(tlis);
       }
 
       if (tagManagerOptions.maxTags > 0 && tlis.length < tagManagerOptions.maxTags) {
         obj.show();
       }
+    };
+
+    var selectTag = function (tagId) {
+      var tlis = obj.data("tlis");
+      var tlid = obj.data("tlid");
+
+      var p = $.inArray(tagId, tlid);
+
+      if (-1 != p) {
+        if (tagManagerOptions.selectHandler != null) {
+          tagManagerOptions.selectHandler(tlis[p])
+        }
+        refreshHiddenTagList();
+      }
+
+      if (tagManagerOptions.maxTags > 0 && tlis.length < tagManagerOptions.maxTags) {
+        obj.show();
+      }
+    };
+
+    var limitPushTags = function () {
+      var tlis = obj.data("tlis");
+      tagManagerOptions.maxTags = tlis.length + 1;
+    };
+
+    var limitPopTags = function () {
+      var tlis = obj.data("tlis");
+      tagManagerOptions.maxTags = tlis.length;
     };
 
     var pushAllTags = function (e, tagstring) {
@@ -349,12 +381,21 @@
 
         var newTagId = objName + '_' + tagId;
         var newTagRemoveId = objName + '_Remover_' + tagId;
+        var newTagSelectId = objName + '_Selecter_' + tagId;
         var escaped = $("<span></span>").text(tag).html();
+        var htmlTag = escaped;
+        if (tagManagerOptions.isSelectable) {
+          htmlTag = '<a href="#" id="' + newTagSelectId + '" TagIdToSelect="' + tagId + '">';
+          htmlTag += escaped + '</a>';
+        }
 
         var html = '<span class="' + tagClasses() + '" id="' + newTagId + '">';
-        html += '<span>' + escaped + '</span>';
-        html += '<a href="#" class="tm-tag-remove" id="' + newTagRemoveId + '" TagIdToRemove="' + tagId + '">';
-        html += tagManagerOptions.tagCloseIcon + '</a></span> ';
+        html += '<span>' + htmlTag + '</span>';
+        if (!tagManagerOptions.isSelectable) {
+          html += '<a href="#" class="tm-tag-remove" id="' + newTagRemoveId + '" TagIdToRemove="' + tagId + '">';
+          html += tagManagerOptions.tagCloseIcon + '</a>';
+        }
+        html += '<span> ';
         var $el = $(html);
 
         if (tagManagerOptions.tagsContainer != null) {
@@ -367,6 +408,12 @@
           e.preventDefault();
           var TagIdToRemove = parseInt($(this).attr("TagIdToRemove"));
           spliceTag(TagIdToRemove, e.data);
+        });
+
+        $el.find("#" + newTagSelectId).on("click", obj, function (e) {
+          e.preventDefault();
+          var TagIdToSelect = parseInt($(this).attr("TagIdToSelect"));
+          selectTag(TagIdToSelect, e.data);
         });
 
         refreshHiddenTagList();
@@ -416,6 +463,12 @@
             break;
           case "pushTag":
             pushTag(tagToManipulate);
+            break;
+          case "limitPushTags":
+            limitPushTags();
+            break;
+          case "limitPopTags":
+            limitPopTags();
             break;
         }
         return;
